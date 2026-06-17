@@ -86,3 +86,14 @@ fun setNotificationManagementEnabled(context: Context, enabled: Boolean) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .edit().putBoolean(KEY_MANAGEMENT_ENABLED, enabled).apply()
 }
+
+private const val KEY_GLOBAL_HEADSUP = "global_headsup_enabled"
+
+fun isGlobalHeadsUpEnabled(context: Context): Boolean =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getBoolean(KEY_GLOBAL_HEADSUP, false)
+
+fun setGlobalHeadsUpEnabled(context: Context, enabled: Boolean) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putBoolean(KEY_GLOBAL_HEADSUP, enabled).apply()
+}

@@ -131,10 +131,12 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val groups = remember { mutableStateListOf<GroupState>() }
     var showDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var zoom by remember { mutableStateOf(1f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     var managementEnabled by remember { mutableStateOf(isNotificationManagementEnabled(context)) }
+    var globalHeadsUpEnabled by remember { mutableStateOf(isGlobalHeadsUpEnabled(context)) }
 
     // Save state whenever the app is paused (user switches away or locks screen).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -305,12 +307,52 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
             Text("Notifications", style = MaterialTheme.typography.labelMedium)
         }
 
-        // FAB stays outside the zoom layer so it's always pinned to the corner.
+        FloatingActionButton(
+            onClick = { showSettingsDialog = true },
+            modifier = Modifier.align(Alignment.BottomStart).padding(16.dp)
+        ) {
+            Text("⚙", style = MaterialTheme.typography.headlineMedium)
+        }
+
         FloatingActionButton(
             onClick = { showDialog = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) {
             Text("+", style = MaterialTheme.typography.headlineMedium)
+        }
+
+        if (showSettingsDialog) {
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                title = { Text("Settings") },
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            Text("Heads-up notifications", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                if (globalHeadsUpEnabled) "Peek banner enabled for all groups"
+                                else "All notifications delivered silently",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = globalHeadsUpEnabled,
+                            onCheckedChange = { enabled ->
+                                globalHeadsUpEnabled = enabled
+                                setGlobalHeadsUpEnabled(context, enabled)
+                            }
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSettingsDialog = false }) { Text("Done") }
+                }
+            )
         }
 
         if (showDialog) {
