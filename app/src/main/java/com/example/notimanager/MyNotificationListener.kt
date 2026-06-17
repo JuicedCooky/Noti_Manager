@@ -57,7 +57,8 @@ class MyNotificationListener : NotificationListenerService() {
         sbnKeyToChildId[sbn.key] = childId
         childIdToSbnKey[childId] = sbn.key
 
-        postChildNotification(childId, groupKey, group.name, group.icon, sbn.packageName, sbn.notification.contentIntent, group.headsUpEnabled, title, text)
+        val effectiveHeadsUp = group.headsUpEnabled && isGlobalHeadsUpEnabled(applicationContext)
+        postChildNotification(childId, groupKey, group.name, group.icon, sbn.packageName, sbn.notification.contentIntent, effectiveHeadsUp, title, text)
         postSummaryNotification(group, groupActiveKeys[group.id] ?: emptySet(), groupKey)
 
         selfCancelledKeys.add(sbn.key)
