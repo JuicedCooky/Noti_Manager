@@ -137,6 +137,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     var managementEnabled by remember { mutableStateOf(isNotificationManagementEnabled(context)) }
     var globalHeadsUpEnabled by remember { mutableStateOf(isGlobalHeadsUpEnabled(context)) }
+    var ignoreMediaAndOngoing by remember { mutableStateOf(isIgnoreMediaAndOngoing(context)) }
 
     // Save state whenever the app is paused (user switches away or locks screen).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -326,27 +327,51 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                 onDismissRequest = { showSettingsDialog = false },
                 title = { Text("Settings") },
                 text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            Text("Heads-up notifications", style = MaterialTheme.typography.labelLarge)
-                            Text(
-                                if (globalHeadsUpEnabled) "Peek banner enabled for all groups"
-                                else "All notifications delivered silently",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text("Heads-up notifications", style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    if (globalHeadsUpEnabled) "Peek banner enabled for all groups"
+                                    else "All notifications delivered silently",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = globalHeadsUpEnabled,
+                                onCheckedChange = { enabled ->
+                                    globalHeadsUpEnabled = enabled
+                                    setGlobalHeadsUpEnabled(context, enabled)
+                                }
                             )
                         }
-                        Switch(
-                            checked = globalHeadsUpEnabled,
-                            onCheckedChange = { enabled ->
-                                globalHeadsUpEnabled = enabled
-                                setGlobalHeadsUpEnabled(context, enabled)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text("Skip media & ongoing", style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    if (ignoreMediaAndOngoing) "Media players and active notifications ignored"
+                                    else "All notifications managed",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        )
+                            Switch(
+                                checked = ignoreMediaAndOngoing,
+                                onCheckedChange = { enabled ->
+                                    ignoreMediaAndOngoing = enabled
+                                    setIgnoreMediaAndOngoing(context, enabled)
+                                }
+                            )
+                        }
                     }
                 },
                 confirmButton = {
@@ -527,7 +552,10 @@ private fun BubbleGroupCluster(
                 )
             }
             .pointerInput(group.id + "longpress") {
-                detectTapGestures(onLongPress = { group.showEditDialog = true })
+                detectTapGestures(onLongPress = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    group.showEditDialog = true
+                })
             }
     ) {
         DRAWABLE_ICONS.firstOrNull { it.first == group.icon }?.second?.let { resId ->

@@ -41,6 +41,12 @@ class MyNotificationListener : NotificationListenerService() {
         if (sbn.packageName == packageName) return
         if (!isNotificationManagementEnabled(applicationContext)) return
 
+        if (isIgnoreMediaAndOngoing(applicationContext)) {
+            val flags = sbn.notification.flags
+            val category = sbn.notification.category
+            if ((flags and Notification.FLAG_ONGOING_EVENT) != 0 || category == Notification.CATEGORY_TRANSPORT) return
+        }
+
         val groups = loadSavedGroups(applicationContext) ?: return
         val group = groups.firstOrNull { sbn.packageName in it.packageNames } ?: return
         if (!group.groupingEnabled) return

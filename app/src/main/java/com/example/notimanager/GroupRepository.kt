@@ -97,3 +97,14 @@ fun setGlobalHeadsUpEnabled(context: Context, enabled: Boolean) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .edit().putBoolean(KEY_GLOBAL_HEADSUP, enabled).apply()
 }
+
+private const val KEY_IGNORE_MEDIA_ONGOING = "ignore_media_and_ongoing"
+
+fun isIgnoreMediaAndOngoing(context: Context): Boolean =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getBoolean(KEY_IGNORE_MEDIA_ONGOING, true)
+
+fun setIgnoreMediaAndOngoing(context: Context, enabled: Boolean) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putBoolean(KEY_IGNORE_MEDIA_ONGOING, enabled).apply()
+}
