@@ -3,6 +3,7 @@ package com.example.notimanager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -10,7 +11,7 @@ import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import android.graphics.BitmapFactory
+import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -55,7 +56,7 @@ class MyNotificationListener : NotificationListenerService() {
         sbnKeyToChildId[sbn.key] = childId
         childIdToSbnKey[childId] = sbn.key
 
-        postChildNotification(childId, groupKey, group.name, group.icon, title, text)
+        postChildNotification(childId, groupKey, group.name, group.icon, sbn.packageName, sbn.notification.contentIntent, title, text)
         postSummaryNotification(group, groupActiveKeys[group.id] ?: emptySet(), groupKey)
 
         selfCancelledKeys.add(sbn.key)
@@ -106,42 +107,56 @@ class MyNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun postChildNotification(childId: Int, groupKey: String, groupName: String, groupIcon: String, title: String, text: String) {
+    private fun postChildNotification(childId: Int, groupKey: String, groupName: String, groupIcon: String, sourcePackage: String, contentIntent: PendingIntent?, title: String, text: String) {
         val smallIcon = iconCompatFor(groupIcon)
             ?: IconCompat.createWithResource(this, android.R.drawable.ic_dialog_info)
+
+        val appIconBitmap = try {
+            packageManager.getApplicationIcon(sourcePackage).toBitmap()
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+
+        // 1. Keep the text pure for the BigTextStyle
         val style = NotificationCompat.BigTextStyle().bigText(text)
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(smallIcon)
-            .setContentTitle(title)
+            // 2. Add the colon directly to the title here!
+            .setContentTitle("$title:")
+            // 3. Just pass the normal text here
             .setContentText(text)
+            .setStyle(style)
             .setGroup(groupKey)
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
             .setAutoCancel(true)
-        iconLargeBitmap(groupIcon, groupName)?.let { builder.setLargeIcon(it) }
+        contentIntent?.let { builder.setContentIntent(it) }
+        appIconBitmap?.let { builder.setLargeIcon(it) }
         getSystemService(NotificationManager::class.java).notify(childId, builder.build())
     }
 
 
     private fun postSummaryNotification(group: SavedGroupData, activeKeys: Set<String>, groupKey: String) {
         val count = activeKeys.size
-//        val smallIcon = iconCompatFor(group.icon)
-//            ?: IconCompat.createWithResource(this, android.R.drawable.ic_dialog_info)
 
+        // Simple style strictly for the summary text field
         val inboxStyle = NotificationCompat.InboxStyle()
-            .setBigContentTitle(group.name) // Tells the system this is the group name
-            .setSummaryText("$count new alerts")
+            .setSummaryText("${group.name} ($count)") // Appears next to app name in header
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Use a static icon
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            // Fallbacks for older Android versions (API < 24)
             .setContentTitle(group.name)
-            .setContentText("${group.name} · $count alerts")
+            .setContentText("$count updates available")
+            // Grouping requirements
             .setGroup(groupKey)
             .setGroupSummary(true)
-            .setStyle(inboxStyle) // InboxStyle often triggers better compliance from OEMs
+            .setStyle(inboxStyle)
             .setOnlyAlertOnce(true)
 
         getSystemService(NotificationManager::class.java).notify(summaryId(group.id), builder.build())
     }
+
 
     private fun iconLargeBitmap(iconName: String, groupName: String): Bitmap? {
         val resId = when (iconName) {
@@ -172,6 +187,16 @@ class MyNotificationListener : NotificationListenerService() {
             else -> return null
         }
         return IconCompat.createWithResource(this, resId)
+    }
+
+    private fun android.graphics.drawable.Drawable.toBitmap(): Bitmap {
+        val w = if (intrinsicWidth > 0) intrinsicWidth else 96
+        val h = if (intrinsicHeight > 0) intrinsicHeight else 96
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        setBounds(0, 0, canvas.width, canvas.height)
+        draw(canvas)
+        return bmp
     }
 
     private fun summaryId(groupId: String) = groupId.hashCode()
