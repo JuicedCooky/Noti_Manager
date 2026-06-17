@@ -142,23 +142,35 @@ class MyNotificationListener : NotificationListenerService() {
 
     private fun postSummaryNotification(group: SavedGroupData, activeKeys: Set<String>, groupKey: String) {
         val count = activeKeys.size
+        val smallIcon = iconCompatFor(group.icon)
+            ?: IconCompat.createWithResource(this, R.drawable.ic_launcher_foreground)
+        val emoji = iconEmoji(group.icon)
+        val displayName = if (emoji.isNotEmpty()) "$emoji ${group.name}" else group.name
 
-        // Simple style strictly for the summary text field
         val inboxStyle = NotificationCompat.InboxStyle()
-            .setSummaryText("${group.name} ($count)") // Appears next to app name in header
+            .setSummaryText("$displayName ($count)")
+
+        val accentColor = AVATAR_COLORS[(group.name.firstOrNull()?.code ?: 0) % AVATAR_COLORS.size]
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            // Fallbacks for older Android versions (API < 24)
-            .setContentTitle(group.name)
+            .setSmallIcon(smallIcon)
+            .setColor(accentColor)
+            .setColorized(false)
+            .setContentTitle(displayName)
             .setContentText("$count updates available")
-            // Grouping requirements
             .setGroup(groupKey)
             .setGroupSummary(true)
             .setStyle(inboxStyle)
             .setOnlyAlertOnce(true)
+        iconLargeBitmap(group.icon, group.name)?.let { builder.setLargeIcon(it) }
 
         getSystemService(NotificationManager::class.java).notify(summaryId(group.id), builder.build())
+    }
+
+    private fun iconEmoji(iconName: String) = when (iconName) {
+        "audio" -> "🔊"
+        "mail" -> "✉️"
+        else -> ""
     }
 
 
