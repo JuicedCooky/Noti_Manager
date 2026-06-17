@@ -122,6 +122,7 @@ class GroupState(val id: String, name: String) {
     var dotScale by mutableStateOf(1f)
     var icon by mutableStateOf("")
     var groupingEnabled by mutableStateOf(true)
+    var headsUpEnabled by mutableStateOf(false)
     var showEditDialog by mutableStateOf(false)
 }
 
@@ -159,6 +160,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                     g.icon = s.icon
                     g.description = s.description
                     g.groupingEnabled = s.groupingEnabled
+                    g.headsUpEnabled = s.headsUpEnabled
                     if (s.center != Offset.Zero) g.center = s.center
                     for (pkg in s.packageNames) {
                         byPackage[pkg]?.let { g.apps.add(it); assigned.add(pkg) }
@@ -501,6 +503,7 @@ private fun BubbleGroupCluster(
         var editName by remember { mutableStateOf(group.name) }
         var editDesc by remember { mutableStateOf(group.description) }
         var editGroupingEnabled by remember { mutableStateOf(group.groupingEnabled) }
+        var editHeadsUpEnabled by remember { mutableStateOf(group.headsUpEnabled) }
         var editIcon by remember { mutableStateOf(group.icon) }
         var editDotScale by remember { mutableStateOf(group.dotScale) }
         var editDotColor by remember { mutableStateOf(group.dotColor) }
@@ -592,6 +595,25 @@ private fun BubbleGroupCluster(
                                 onCheckedChange = { editGroupingEnabled = it }
                             )
                         }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text("Heads-up notifications", style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    if (editHeadsUpEnabled) "Peek banner for each notification"
+                                    else "Deliver silently to shade",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = editHeadsUpEnabled,
+                                onCheckedChange = { editHeadsUpEnabled = it }
+                            )
+                        }
                         // Icon section
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -668,6 +690,7 @@ private fun BubbleGroupCluster(
                         group.dotScale = editDotScale
                         group.dotColor = editDotColor
                         group.groupingEnabled = editGroupingEnabled
+                        group.headsUpEnabled = editHeadsUpEnabled
                         group.showEditDialog = false
                     }) { Text("Save") }
                 },

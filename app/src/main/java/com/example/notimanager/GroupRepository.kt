@@ -19,7 +19,8 @@ data class SavedGroupData(
     val dotScale: Float,
     val center: Offset,
     val packageNames: List<String>,
-    val groupingEnabled: Boolean = true
+    val groupingEnabled: Boolean = true,
+    val headsUpEnabled: Boolean = false
 )
 
 fun saveGroups(context: Context, groups: List<GroupState>) {
@@ -34,6 +35,7 @@ fun saveGroups(context: Context, groups: List<GroupState>) {
         // Store internal ULong representation as a Long (bit-preserving round-trip).
         if (g.dotColor != null) obj.put("dotColor", g.dotColor!!.value.toLong())
         obj.put("groupingEnabled", g.groupingEnabled)
+        obj.put("headsUpEnabled", g.headsUpEnabled)
         obj.put("centerX", g.center.x.toDouble())
         obj.put("centerY", g.center.y.toDouble())
         val pkgs = JSONArray()
@@ -60,6 +62,7 @@ fun loadSavedGroups(context: Context): List<SavedGroupData>? {
                 dotColor = if (obj.has("dotColor")) Color(obj.getLong("dotColor").toULong()) else null,
                 dotScale = obj.optDouble("dotScale", 1.0).toFloat(),
                 groupingEnabled = obj.optBoolean("groupingEnabled", true),
+                headsUpEnabled = obj.optBoolean("headsUpEnabled", false),
                 center = Offset(
                     obj.getDouble("centerX").toFloat(),
                     obj.getDouble("centerY").toFloat()

@@ -27,12 +27,13 @@ class MyNotificationListener : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Group Notifications",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(NotificationChannel(
+                CHANNEL_ID, "Group Notifications", NotificationManager.IMPORTANCE_DEFAULT
+            ))
+            nm.createNotificationChannel(NotificationChannel(
+                HEADSUP_CHANNEL_ID, "Group Heads-up Notifications", NotificationManager.IMPORTANCE_HIGH
+            ))
         }
     }
 
@@ -56,7 +57,7 @@ class MyNotificationListener : NotificationListenerService() {
         sbnKeyToChildId[sbn.key] = childId
         childIdToSbnKey[childId] = sbn.key
 
-        postChildNotification(childId, groupKey, group.name, group.icon, sbn.packageName, sbn.notification.contentIntent, title, text)
+        postChildNotification(childId, groupKey, group.name, group.icon, sbn.packageName, sbn.notification.contentIntent, group.headsUpEnabled, title, text)
         postSummaryNotification(group, groupActiveKeys[group.id] ?: emptySet(), groupKey)
 
         selfCancelledKeys.add(sbn.key)
@@ -107,7 +108,7 @@ class MyNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun postChildNotification(childId: Int, groupKey: String, groupName: String, groupIcon: String, sourcePackage: String, contentIntent: PendingIntent?, title: String, text: String) {
+    private fun postChildNotification(childId: Int, groupKey: String, groupName: String, groupIcon: String, sourcePackage: String, contentIntent: PendingIntent?, headsUpEnabled: Boolean, title: String, text: String) {
         val smallIcon = iconCompatFor(groupIcon)
             ?: IconCompat.createWithResource(this, android.R.drawable.ic_dialog_info)
 
@@ -117,18 +118,21 @@ class MyNotificationListener : NotificationListenerService() {
             null
         }
 
-        // 1. Keep the text pure for the BigTextStyle
-        val style = NotificationCompat.BigTextStyle().bigText(text)
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val channelId = if (headsUpEnabled) HEADSUP_CHANNEL_ID else CHANNEL_ID
+        val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(smallIcon)
-            // 2. Add the colon directly to the title here!
             .setContentTitle("$title:")
-            // 3. Just pass the normal text here
             .setContentText(text)
-            .setStyle(style)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setGroup(groupKey)
-            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
+            .setGroupAlertBehavior(
+                if (headsUpEnabled) NotificationCompat.GROUP_ALERT_CHILDREN
+                else NotificationCompat.GROUP_ALERT_SUMMARY
+            )
+            .setPriority(
+                if (headsUpEnabled) NotificationCompat.PRIORITY_HIGH
+                else NotificationCompat.PRIORITY_DEFAULT
+            )
             .setAutoCancel(true)
         contentIntent?.let { builder.setContentIntent(it) }
         appIconBitmap?.let { builder.setLargeIcon(it) }
@@ -204,6 +208,7 @@ class MyNotificationListener : NotificationListenerService() {
     companion object {
         private const val TAG = "NotiManager"
         private const val CHANNEL_ID = "noti_manager_groups"
+        private const val HEADSUP_CHANNEL_ID = "noti_manager_headsup"
         private val AVATAR_COLORS = intArrayOf(
             0xFF1565C0.toInt(), // blue
             0xFF2E7D32.toInt(), // green
