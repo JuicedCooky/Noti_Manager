@@ -92,7 +92,9 @@ class MyNotificationListener : NotificationListenerService() {
         keys.remove(sbn.key)
         if (keys.isEmpty()) {
             groupActiveKeys.remove(groupId)
-            getSystemService(NotificationManager::class.java).cancel(summaryId(groupId))
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.cancel(summaryId(groupId))
+            nm.cancel(anchorId(groupId))
         } else {
             val group = loadSavedGroups(applicationContext)?.firstOrNull { it.id == groupId }
             if (group != null) postSummaryNotification(group, keys, "noti_manager_${groupId}")
@@ -108,7 +110,9 @@ class MyNotificationListener : NotificationListenerService() {
         keys.remove(originalKey)
         if (keys.isEmpty()) {
             groupActiveKeys.remove(groupId)
-            getSystemService(NotificationManager::class.java).cancel(summaryId(groupId))
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.cancel(summaryId(groupId))
+            nm.cancel(anchorId(groupId))
         } else {
             val group = loadSavedGroups(applicationContext)?.firstOrNull { it.id == groupId }
             if (group != null) postSummaryNotification(group, keys, "noti_manager_${groupId}")
@@ -152,26 +156,39 @@ class MyNotificationListener : NotificationListenerService() {
         val smallIcon = iconCompatFor(group.icon)
             ?: IconCompat.createWithResource(this, R.drawable.ic_launcher_foreground)
         val emoji = iconEmoji(group.icon)
-        val displayName = if (emoji.isNotEmpty()) "$emoji ${group.name}" else group.name
-
-        val inboxStyle = NotificationCompat.InboxStyle()
-            .setSummaryText("$displayName ($count)")
-
+        val displayName = if (emoji.isNotEmpty()) "$emoji ${group.name}:" else group.name
         val accentColor = AVATAR_COLORS[(group.name.firstOrNull()?.code ?: 0) % AVATAR_COLORS.size]
+        val nm = getSystemService(NotificationManager::class.java)
 
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        // Visible summary: no setGroupSummary so Samsung renders it as a normal notification.
+        // setSortKey("!") places it above children (lexicographically first); setWhen ensures
+        // it is the most-recent notification so Samsung's recency ordering also puts it on top.
+//        val inboxStyle = NotificationCompat.InboxStyle().setSummaryText("$count updates available")
+        val visBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(smallIcon)
             .setColor(accentColor)
             .setColorized(false)
             .setContentTitle(displayName)
             .setContentText("$count updates available")
             .setGroup(groupKey)
-            .setGroupSummary(true)
-            .setStyle(inboxStyle)
+            .setSortKey("!")
+            .setWhen(System.currentTimeMillis())
+//            .setStyle(inboxStyle)
             .setOnlyAlertOnce(true)
-        iconLargeBitmap(group.icon, group.name)?.let { builder.setLargeIcon(it) }
+        iconLargeBitmap(group.icon, group.name)?.let { visBuilder.setLargeIcon(it) }
+        nm.notify(summaryId(group.id), visBuilder.build())
 
-        getSystemService(NotificationManager::class.java).notify(summaryId(group.id), builder.build())
+        // Minimal group anchor: required for Android's group-collapsing machinery on stock
+        // Android. Samsung typically hides this entirely, which is the desired behavior.
+        val anchorBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(smallIcon)
+            .setContentTitle(displayName)
+            .setContentText("$count updates available")
+            .setGroup(groupKey)
+            .setGroupSummary(true)
+            .setSortKey("~")
+            .setOnlyAlertOnce(true)
+        nm.notify(anchorId(group.id), anchorBuilder.build())
     }
 
     private fun iconEmoji(iconName: String) = when (iconName) {
@@ -223,6 +240,7 @@ class MyNotificationListener : NotificationListenerService() {
     }
 
     private fun summaryId(groupId: String) = groupId.hashCode()
+    private fun anchorId(groupId: String) = groupId.hashCode() xor Int.MIN_VALUE
 
     companion object {
         private const val TAG = "NotiManager"

@@ -138,6 +138,8 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
     var managementEnabled by remember { mutableStateOf(isNotificationManagementEnabled(context)) }
     var globalHeadsUpEnabled by remember { mutableStateOf(isGlobalHeadsUpEnabled(context)) }
     var ignoreMediaAndOngoing by remember { mutableStateOf(isIgnoreMediaAndOngoing(context)) }
+    var appBubbleScale by remember { mutableStateOf(getAppBubbleScale(context)) }
+    var appSpacingScale by remember { mutableStateOf(getAppSpacingScale(context)) }
 
     // Save state whenever the app is paused (user switches away or locks screen).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -283,6 +285,8 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                         allGroups = groups,
                         widthPx = widthPx,
                         heightPx = heightPx,
+                        appBubbleScale = appBubbleScale,
+                        appSpacingScale = appSpacingScale,
                         onDeleteGroup = { groups.remove(group) }
                     )
                 }
@@ -372,6 +376,34 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                                 }
                             )
                         }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("App size", style = MaterialTheme.typography.labelLarge)
+                            Text("${"%.1f".format(appBubbleScale)}×", style = MaterialTheme.typography.labelMedium)
+                        }
+                        Slider(
+                            value = appBubbleScale,
+                            onValueChange = { appBubbleScale = it; setAppBubbleScale(context, it) },
+                            valueRange = 0.5f..2.0f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("App spacing", style = MaterialTheme.typography.labelLarge)
+                            Text("${"%.1f".format(appSpacingScale)}×", style = MaterialTheme.typography.labelMedium)
+                        }
+                        Slider(
+                            value = appSpacingScale,
+                            onValueChange = { appSpacingScale = it; setAppSpacingScale(context, it) },
+                            valueRange = 0.8f..2.5f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 },
                 confirmButton = {
@@ -417,13 +449,14 @@ private fun BubbleGroupCluster(
     allGroups: List<GroupState>,
     widthPx: Float,
     heightPx: Float,
+    appBubbleScale: Float = 1f,
+    appSpacingScale: Float = 1f,
     onDeleteGroup: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
-    // Fixed size for every bubble regardless of how many apps are in the group.
-    val bubbleRadius = min(widthPx, heightPx) / 14f
+    val bubbleRadius = min(widthPx, heightPx) / 14f * appBubbleScale
     val packRadius = min(widthPx, heightPx) * 2f  // large enough to never clip packing
 
     val currentBubbleRadius by rememberUpdatedState(bubbleRadius)
@@ -432,19 +465,19 @@ private fun BubbleGroupCluster(
 
     // Compute groupRadius synchronously so the background circle updates the same frame
     // the app count changes, rather than one frame late via LaunchedEffect.
-    val groupRadius = remember(group.apps.size, bubbleRadius, group.dotScale) {
+    val groupRadius = remember(group.apps.size, bubbleRadius, group.dotScale, appSpacingScale) {
         val dotR = bubbleRadius * group.dotScale
         val cp = (bubbleRadius * (CENTER_GAP + group.dotScale - 1f)).coerceAtLeast(0f)
         if (group.apps.isEmpty()) dotR + bubbleRadius * 2f
         else {
-            val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp)
+            val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp, appSpacingScale)
             (packed.maxOfOrNull { p -> sqrt(p.x * p.x + p.y * p.y) } ?: 0f) + bubbleRadius * 1.3f
         }
     }
     SideEffect { group.groupRadius = groupRadius }
 
     // Build slot table. Slot 0 = center dot (reserved); apps occupy slots 1..N.
-    LaunchedEffect(group.apps.size, group.id, group.dotScale) {
+    LaunchedEffect(group.apps.size, group.id, group.dotScale, bubbleRadius, appSpacingScale) {
         if (group.apps.isEmpty()) {
             group.slots.clear()
             group.slots.add(Offset(-bubbleRadius, -bubbleRadius))
@@ -453,7 +486,7 @@ private fun BubbleGroupCluster(
             return@LaunchedEffect
         }
         val cp = (bubbleRadius * (CENTER_GAP + group.dotScale - 1f)).coerceAtLeast(0f)
-        val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp)
+        val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp, appSpacingScale)
         group.slots.clear()
         group.ownerOf.clear()
         packed.forEach { p -> group.slots.add(Offset(p.x - bubbleRadius, p.y - bubbleRadius)) }
@@ -908,10 +941,11 @@ private fun packBubblesInCircle(
     count: Int,
     containerRadius: Float,
     bubbleRadius: Float,
-    centerPadding: Float = 0f
+    centerPadding: Float = 0f,
+    spacingScale: Float = 1f
 ): List<Offset> {
     if (count == 0) return emptyList()
-    val step = bubbleRadius * 2.15f
+    val step = bubbleRadius * 2.15f * spacingScale
     val positions = mutableListOf(Offset.Zero)
     var ringRadius = step + centerPadding
     while (positions.size < count && ringRadius + bubbleRadius <= containerRadius) {

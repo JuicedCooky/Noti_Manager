@@ -108,3 +108,24 @@ fun setIgnoreMediaAndOngoing(context: Context, enabled: Boolean) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .edit().putBoolean(KEY_IGNORE_MEDIA_ONGOING, enabled).apply()
 }
+
+private const val KEY_APP_BUBBLE_SCALE = "app_bubble_scale"
+private const val KEY_APP_SPACING_SCALE = "app_spacing_scale"
+
+fun getAppBubbleScale(context: Context): Float =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_APP_BUBBLE_SCALE, 1.0f)
+
+fun setAppBubbleScale(context: Context, value: Float) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putFloat(KEY_APP_BUBBLE_SCALE, value).apply()
+}
+
+fun getAppSpacingScale(context: Context): Float =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_APP_SPACING_SCALE, 1.0f)
+
+fun setAppSpacingScale(context: Context, value: Float) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putFloat(KEY_APP_SPACING_SCALE, value).apply()
+}
