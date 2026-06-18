@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.notimanager"
+    namespace = "com.juicedcooky.notimanager"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -12,7 +12,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.notimanager"
+        applicationId = "com.juicedcooky.noti_manager"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
