@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -74,6 +75,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.app.NotificationManagerCompat
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -140,6 +142,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
     var ignoreMediaAndOngoing by remember { mutableStateOf(isIgnoreMediaAndOngoing(context)) }
     var appBubbleScale by remember { mutableStateOf(getAppBubbleScale(context)) }
     var appSpacingScale by remember { mutableStateOf(getAppSpacingScale(context)) }
+    var touchAreaFraction by remember { mutableStateOf(getTouchAreaFraction(context)) }
 
     // Save state whenever the app is paused (user switches away or locks screen).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -287,6 +290,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                         heightPx = heightPx,
                         appBubbleScale = appBubbleScale,
                         appSpacingScale = appSpacingScale,
+                        touchAreaFraction = touchAreaFraction,
                         onDeleteGroup = { groups.remove(group) }
                     )
                 }
@@ -310,6 +314,33 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                 }
             )
             Text("Notifications", style = MaterialTheme.typography.labelMedium)
+        }
+
+        SmallFloatingActionButton(
+            onClick = {
+                if (groups.isNotEmpty()) {
+                    var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE
+                    var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
+                    groups.forEach { g ->
+                        val r = g.groupRadius.coerceAtLeast(1f)
+                        minX = minOf(minX, g.center.x - r)
+                        maxX = maxOf(maxX, g.center.x + r)
+                        minY = minOf(minY, g.center.y - r)
+                        maxY = maxOf(maxY, g.center.y + r)
+                    }
+                    val bw = (maxX - minX).coerceAtLeast(1f)
+                    val bh = (maxY - minY).coerceAtLeast(1f)
+                    val newZoom = (min(widthPx * 0.85f / bw, heightPx * 0.85f / bh)).coerceIn(0.3f, 3f)
+                    zoom = newZoom
+                    panOffset = Offset(
+                        (widthPx / 2f - (minX + maxX) / 2f) * newZoom,
+                        (heightPx / 2f - (minY + maxY) / 2f) * newZoom
+                    )
+                }
+            },
+            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+        ) {
+            Text("⊡", style = MaterialTheme.typography.titleMedium)
         }
 
         FloatingActionButton(
@@ -404,6 +435,20 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                             valueRange = 0.8f..2.5f,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Touch area", style = MaterialTheme.typography.labelLarge)
+                            Text("${(touchAreaFraction * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                        }
+                        Slider(
+                            value = touchAreaFraction,
+                            onValueChange = { touchAreaFraction = it; setTouchAreaFraction(context, it) },
+                            valueRange = 0f..1f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 },
                 confirmButton = {
@@ -451,6 +496,7 @@ private fun BubbleGroupCluster(
     heightPx: Float,
     appBubbleScale: Float = 1f,
     appSpacingScale: Float = 1f,
+    touchAreaFraction: Float = 1f,
     onDeleteGroup: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -465,12 +511,14 @@ private fun BubbleGroupCluster(
 
     // Compute groupRadius synchronously so the background circle updates the same frame
     // the app count changes, rather than one frame late via LaunchedEffect.
-    val groupRadius = remember(group.apps.size, bubbleRadius, group.dotScale, appSpacingScale) {
+    // Collision radius always uses spacingScale=1 so increasing app spacing doesn't force
+    // groups apart beyond what the screen can accommodate.
+    val groupRadius = remember(group.apps.size, bubbleRadius, group.dotScale) {
         val dotR = bubbleRadius * group.dotScale
         val cp = (bubbleRadius * (CENTER_GAP + group.dotScale - 1f)).coerceAtLeast(0f)
         if (group.apps.isEmpty()) dotR + bubbleRadius * 2f
         else {
-            val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp, appSpacingScale)
+            val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp, 1f)
             (packed.maxOfOrNull { p -> sqrt(p.x * p.x + p.y * p.y) } ?: 0f) + bubbleRadius * 1.3f
         }
     }
@@ -811,16 +859,26 @@ private fun BubbleGroupCluster(
         }
     }
 
+    // Interpolate touch diameter from visual size (0%) to max non-overlapping size (100%).
+    // Max = step size in packBubblesInCircle = bubbleRadius * 2.15 * appSpacingScale.
+    val touchDiameter = bubbleRadius * (2f + (2.15f * appSpacingScale - 2f) * touchAreaFraction)
+    val touchSizeDp = with(density) { touchDiameter.toDp() }
+
     // App bubbles
     group.apps.forEach { app ->
         val isDragged = group.draggedPackage == app.packageName
         AppBubble(
             app = app,
+            visualSizeDp = sizeDp,
             modifier = Modifier
-                .size(sizeDp)
+                .size(touchSizeDp)
                 .offset {
                     val pos = group.positions[app.packageName] ?: Offset.Zero
-                    IntOffset(pos.x.roundToInt(), pos.y.roundToInt())
+                    val padding = touchDiameter / 2f - bubbleRadius
+                    IntOffset(
+                        (pos.x - padding).roundToInt(),
+                        (pos.y - padding).roundToInt()
+                    )
                 }
                 .zIndex(if (isDragged) 1f else 0f)
                 .scale(if (isDragged) 1.15f else 1f)
@@ -913,13 +971,15 @@ private fun ColorSwatch(color: Color, selected: Boolean, onSelect: (Color) -> Un
 }
 
 @Composable
-private fun AppBubble(app: AppSetting, modifier: Modifier = Modifier) {
+private fun AppBubble(app: AppSetting, visualSizeDp: Dp, modifier: Modifier = Modifier) {
     val bitmap = app.iconBitmap ?: return
-    Image(
-        painter = BitmapPainter(bitmap),
-        contentDescription = app.name,
-        modifier = modifier.clip(CircleShape)
-    )
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Image(
+            painter = BitmapPainter(bitmap),
+            contentDescription = app.name,
+            modifier = Modifier.size(visualSizeDp).clip(CircleShape)
+        )
+    }
 }
 
 suspend fun getInstalledAppsWithUi(context: Context): List<AppSetting> = withContext(Dispatchers.IO) {

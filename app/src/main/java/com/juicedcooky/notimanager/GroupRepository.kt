@@ -129,3 +129,14 @@ fun setAppSpacingScale(context: Context, value: Float) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .edit().putFloat(KEY_APP_SPACING_SCALE, value).apply()
 }
+
+private const val KEY_TOUCH_AREA_FRACTION = "touch_area_fraction"
+
+fun getTouchAreaFraction(context: Context): Float =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_TOUCH_AREA_FRACTION, 1f)
+
+fun setTouchAreaFraction(context: Context, value: Float) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putFloat(KEY_TOUCH_AREA_FRACTION, value).apply()
+}
