@@ -92,6 +92,10 @@ private const val CENTER_GAP = 1.0f
 private val DRAWABLE_ICONS: List<Pair<String, Int>> = listOf(
     "audio" to R.drawable.audio,
     "mail" to R.drawable.mail,
+    "apartment" to R.drawable.apartment,
+    "dnd" to R.drawable.dnd,
+    "music" to R.drawable.music,
+    "news" to R.drawable.news,
     "ic_launcher_foreground" to R.drawable.ic_launcher_foreground,
 )
 
@@ -120,6 +124,7 @@ class GroupState(val id: String, name: String) {
     var draggedPackage by mutableStateOf<String?>(null)
     var isGroupDragging by mutableStateOf(false)
     var groupRadius = 0f
+    var visualGroupRadius = 0f
     var dotColor by mutableStateOf<Color?>(null)
     var dotScale by mutableStateOf(1f)
     var icon by mutableStateOf("")
@@ -215,7 +220,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                                 val gi = groups[i]; val gj = groups[j]
                                 val delta = gj.center - gi.center
                                 val dist = delta.getDistance()
-                                val minDist = gi.groupRadius + gj.groupRadius + 40f
+                                val minDist = gi.visualGroupRadius + gj.visualGroupRadius + 40f
                                 if (dist < minDist) {
                                     val norm = if (dist > 0.1f) delta / dist else Offset(1f, 0f)
                                     val overlap = minDist - dist
@@ -322,7 +327,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                     var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE
                     var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
                     groups.forEach { g ->
-                        val r = g.groupRadius.coerceAtLeast(1f)
+                        val r = g.visualGroupRadius.coerceAtLeast(1f)
                         minX = minOf(minX, g.center.x - r)
                         maxX = maxOf(maxX, g.center.x + r)
                         minY = minOf(minY, g.center.y - r)
@@ -449,6 +454,34 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                             valueRange = 0f..1f,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        TextButton(
+                            onClick = {
+                                val n = groups.size
+                                if (n > 0) {
+                                    val cols = ceil(sqrt(n.toFloat())).toInt().coerceAtLeast(1)
+                                    val rows = ceil(n.toFloat() / cols).toInt().coerceAtLeast(1)
+                                    val spacingX = widthPx / (cols + 1)
+                                    val spacingY = heightPx / (rows + 1)
+                                    groups.forEachIndexed { i, g ->
+                                        val col = (i % cols) + 1
+                                        val row = (i / cols) + 1
+                                        val newCenter = Offset(spacingX * col, spacingY * row)
+                                        g.center = newCenter
+                                        g.apps.forEach { app ->
+                                            g.positions[app.packageName] = newCenter
+                                            g.velocities[app.packageName] = Offset.Zero
+                                        }
+                                    }
+                                }
+                                appBubbleScale = 1.0f; setAppBubbleScale(context, 1.0f)
+                                appSpacingScale = 1.0f; setAppSpacingScale(context, 1.0f)
+                                touchAreaFraction = 1.0f; setTouchAreaFraction(context, 1.0f)
+                                showSettingsDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Reset group positions")
+                        }
                     }
                 },
                 confirmButton = {
@@ -509,9 +542,7 @@ private fun BubbleGroupCluster(
     val currentCenter by rememberUpdatedState(group.center)
     val currentAllGroups by rememberUpdatedState(allGroups)
 
-    // Compute groupRadius synchronously so the background circle updates the same frame
-    // the app count changes, rather than one frame late via LaunchedEffect.
-    // Collision radius always uses spacingScale=1 so increasing app spacing doesn't force
+    // Collision radius uses spacingScale=1 so increasing app spacing doesn't force
     // groups apart beyond what the screen can accommodate.
     val groupRadius = remember(group.apps.size, bubbleRadius, group.dotScale) {
         val dotR = bubbleRadius * group.dotScale
@@ -523,6 +554,19 @@ private fun BubbleGroupCluster(
         }
     }
     SideEffect { group.groupRadius = groupRadius }
+
+    // Visual radius uses the actual spacing scale so the background expands to contain
+    // apps when spacing is increased, and the fit-to-screen button accounts for it too.
+    val visualGroupRadius = remember(group.apps.size, bubbleRadius, group.dotScale, appSpacingScale) {
+        val dotR = bubbleRadius * group.dotScale
+        val cp = (bubbleRadius * (CENTER_GAP + group.dotScale - 1f)).coerceAtLeast(0f)
+        if (group.apps.isEmpty()) dotR + bubbleRadius * 2f
+        else {
+            val packed = packBubblesInCircle(group.apps.size + 1, packRadius, bubbleRadius, cp, appSpacingScale)
+            (packed.maxOfOrNull { p -> sqrt(p.x * p.x + p.y * p.y) } ?: 0f) + bubbleRadius * 1.3f
+        }
+    }
+    SideEffect { group.visualGroupRadius = visualGroupRadius }
 
     // Build slot table. Slot 0 = center dot (reserved); apps occupy slots 1..N.
     LaunchedEffect(group.apps.size, group.id, group.dotScale, bubbleRadius, appSpacingScale) {
@@ -586,7 +630,7 @@ private fun BubbleGroupCluster(
     val sizeDp = with(density) { (bubbleRadius * 2f).toDp() }
     val dotRadius = bubbleRadius * group.dotScale
     val dotSizeDp = with(density) { (dotRadius * 2f).toDp() }
-    val targetBgRadius = groupRadius.coerceAtLeast(dotRadius + bubbleRadius * 2f)
+    val targetBgRadius = visualGroupRadius.coerceAtLeast(dotRadius + bubbleRadius * 2f)
     val bgRadius by animateFloatAsState(
         targetValue = targetBgRadius,
         animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy),
@@ -660,6 +704,7 @@ private fun BubbleGroupCluster(
         var editDotColor by remember { mutableStateOf(group.dotColor) }
         var showColorDialog by remember { mutableStateOf(false) }
         var showDeleteConfirm by remember { mutableStateOf(false) }
+        var showIconPicker by remember { mutableStateOf(false) }
 
         if (showColorDialog) {
             AlertDialog(
@@ -682,6 +727,54 @@ private fun BubbleGroupCluster(
                 },
                 confirmButton = {
                     TextButton(onClick = { showColorDialog = false }) { Text("Done") }
+                }
+            )
+        } else if (showIconPicker) {
+            var iconSearch by remember { mutableStateOf("") }
+            val filteredIcons = DRAWABLE_ICONS.filter { (name, _) ->
+                iconSearch.isBlank() || name.contains(iconSearch, ignoreCase = true)
+            }
+            AlertDialog(
+                onDismissRequest = { showIconPicker = false },
+                title = { Text("Choose Icon") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedTextField(
+                            value = iconSearch,
+                            onValueChange = { iconSearch = it },
+                            label = { Text("Search") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        filteredIcons.forEach { (name, resId) ->
+                            val selected = editIcon == name
+                            val accent = editDotColor ?: resolvedDotColor
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(if (selected) accent.copy(alpha = 0.15f) else Color.Transparent)
+                                    .clickable { editIcon = name; showIconPicker = false }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = resId),
+                                    contentDescription = name,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = if (selected) accent else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    name.split("_").joinToString(" ") { it.replaceFirstChar { c -> c.uppercaseChar() } },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (selected) accent else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showIconPicker = false }) { Text("Cancel") }
                 }
             )
         } else if (showDeleteConfirm) {
@@ -776,30 +869,22 @@ private fun BubbleGroupCluster(
                                 TextButton(onClick = { editIcon = "" }) { Text("Clear") }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            DRAWABLE_ICONS.forEach { (name, resId) ->
-                                val selected = editIcon == name
-                                val accent = editDotColor ?: resolvedDotColor
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(52.dp)
-                                        .clip(CircleShape)
-                                        .background(if (selected) accent.copy(alpha = 0.2f) else Color.Transparent)
-                                        .border(
-                                            width = if (selected) 2.dp else 1.dp,
-                                            color = if (selected) accent else Color.Gray.copy(alpha = 0.4f),
-                                            shape = CircleShape
-                                        )
-                                        .clickable { editIcon = name }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = resId),
-                                        contentDescription = name,
-                                        modifier = Modifier.size(30.dp),
-                                        tint = if (selected) accent else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
+                        TextButton(
+                            onClick = { showIconPicker = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val currentIconRes = DRAWABLE_ICONS.firstOrNull { it.first == editIcon }?.second
+                            if (currentIconRes != null) {
+                                Icon(
+                                    painter = painterResource(id = currentIconRes),
+                                    contentDescription = editIcon,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = editDotColor ?: resolvedDotColor
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(editIcon.split("_").joinToString(" ") { it.replaceFirstChar { c -> c.uppercaseChar() } })
+                            } else {
+                                Text("Select icon")
                             }
                         }
                         // Dot size section
