@@ -77,7 +77,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -93,10 +92,14 @@ private val DRAWABLE_ICONS: List<Pair<String, Int>> = listOf(
     "audio" to R.drawable.audio,
     "mail" to R.drawable.mail,
     "apartment" to R.drawable.apartment,
+    "android" to R.drawable.android,
     "dnd" to R.drawable.dnd,
+    "heart" to R.drawable.heart,
     "music" to R.drawable.music,
     "news" to R.drawable.news,
-    "ic_launcher_foreground" to R.drawable.ic_launcher_foreground,
+    "settings" to R.drawable.settings,
+    "star" to R.drawable.star,
+    "ic_launcher_foreground" to R.drawable.noti_manager_foreground,
 )
 
 private val DOT_COLORS = listOf(
@@ -148,6 +151,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
     var appBubbleScale by remember { mutableStateOf(getAppBubbleScale(context)) }
     var appSpacingScale by remember { mutableStateOf(getAppSpacingScale(context)) }
     var touchAreaFraction by remember { mutableStateOf(getTouchAreaFraction(context)) }
+    var searchQuery by remember { mutableStateOf("") }
 
     // Save state whenever the app is paused (user switches away or locks screen).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -207,66 +211,9 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        // Separation: push overlapping groups apart each frame.
-        // Three passes per frame resolve chains of groups in one shot.
-        // Clamping uses the dot radius so large groups can extend off-screen
-        // (pan/zoom handles navigation) instead of fighting the separation.
-        LaunchedEffect(Unit) {
-            while (true) {
-                withFrameNanos {
-                    repeat(3) {
-                        for (i in groups.indices) {
-                            for (j in i + 1 until groups.size) {
-                                val gi = groups[i]; val gj = groups[j]
-                                val delta = gj.center - gi.center
-                                val dist = delta.getDistance()
-                                val minDist = gi.visualGroupRadius + gj.visualGroupRadius + 40f
-                                if (dist < minDist) {
-                                    val norm = if (dist > 0.1f) delta / dist else Offset(1f, 0f)
-                                    val overlap = minDist - dist
-                                    val iFixed = gi.isGroupDragging
-                                    val jFixed = gj.isGroupDragging
-                                    if (!iFixed) {
-                                        val push = norm * (if (jFixed) overlap else overlap * 0.5f)
-                                        gi.center -= push
-                                        gi.apps.forEach { app ->
-                                            gi.positions[app.packageName]?.let {
-                                                gi.positions[app.packageName] = it - push
-                                            }
-                                        }
-                                    }
-                                    if (!jFixed) {
-                                        val push = norm * (if (iFixed) overlap else overlap * 0.5f)
-                                        gj.center += push
-                                        gj.apps.forEach { app ->
-                                            gj.positions[app.packageName]?.let {
-                                                gj.positions[app.packageName] = it + push
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Clamp center dot to screen; group bubbles may extend off-edge.
-                    val dotR = min(widthPx, heightPx) / 14f
-                    groups.forEach { g ->
-                        if (!g.isGroupDragging) {
-                            val cx = g.center.x.coerceIn(dotR, (widthPx - dotR).coerceAtLeast(dotR))
-                            val cy = g.center.y.coerceIn(dotR, (heightPx - dotR).coerceAtLeast(dotR))
-                            if (cx != g.center.x || cy != g.center.y) {
-                                val delta = Offset(cx - g.center.x, cy - g.center.y)
-                                g.center = Offset(cx, cy)
-                                g.apps.forEach { app ->
-                                    g.positions[app.packageName]?.let {
-                                        g.positions[app.packageName] = it + delta
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        // Push groups apart when global scale settings change.
+        LaunchedEffect(appBubbleScale, appSpacingScale) {
+            runSeparationPass(groups)
         }
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -296,6 +243,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                         appBubbleScale = appBubbleScale,
                         appSpacingScale = appSpacingScale,
                         touchAreaFraction = touchAreaFraction,
+                        searchQuery = searchQuery,
                         onDeleteGroup = { groups.remove(group) }
                     )
                 }
@@ -348,18 +296,31 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
             Text("⊡", style = MaterialTheme.typography.titleMedium)
         }
 
-        FloatingActionButton(
-            onClick = { showSettingsDialog = true },
-            modifier = Modifier.align(Alignment.BottomStart).padding(16.dp)
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("⚙", style = MaterialTheme.typography.headlineMedium)
-        }
-
-        FloatingActionButton(
-            onClick = { showDialog = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-        ) {
-            Text("+", style = MaterialTheme.typography.headlineMedium)
+            FloatingActionButton(onClick = { showSettingsDialog = true }) {
+                Text("⚙", style = MaterialTheme.typography.headlineMedium)
+            }
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search apps") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.extraLarge,
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    { Text("✕", modifier = Modifier.clickable { searchQuery = "" }.padding(4.dp)) }
+                } else null
+            )
+            FloatingActionButton(onClick = { showDialog = true }) {
+                Text("+", style = MaterialTheme.typography.headlineMedium)
+            }
         }
 
         if (showSettingsDialog) {
@@ -456,6 +417,32 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                         )
                         TextButton(
                             onClick = {
+                                val default = groups.firstOrNull { it.id == "default" }
+                                val nonDefault = groups.filter { it.id != "default" }
+                                if (default != null && nonDefault.isNotEmpty()) {
+                                    val n = nonDefault.size
+                                    val spread = widthPx.coerceAtMost(heightPx) * 0.3f
+                                    nonDefault.forEachIndexed { i, g ->
+                                        val angle = 2.0 * PI * i / n
+                                        val newCenter = Offset(
+                                            default.center.x + (spread * cos(angle)).toFloat(),
+                                            default.center.y + (spread * sin(angle)).toFloat()
+                                        )
+                                        g.center = newCenter
+                                        g.apps.forEach { app ->
+                                            g.positions[app.packageName] = newCenter
+                                            g.velocities[app.packageName] = Offset.Zero
+                                        }
+                                    }
+                                }
+                                showSettingsDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Gather groups near default")
+                        }
+                        TextButton(
+                            onClick = {
                                 val n = groups.size
                                 if (n > 0) {
                                     val cols = ceil(sqrt(n.toFloat())).toInt().coerceAtLeast(1)
@@ -530,6 +517,7 @@ private fun BubbleGroupCluster(
     appBubbleScale: Float = 1f,
     appSpacingScale: Float = 1f,
     touchAreaFraction: Float = 1f,
+    searchQuery: String = "",
     onDeleteGroup: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -567,6 +555,11 @@ private fun BubbleGroupCluster(
         }
     }
     SideEffect { group.visualGroupRadius = visualGroupRadius }
+
+    // Push other groups away when this group grows via dot size or app count.
+    LaunchedEffect(group.dotScale, group.apps.size) {
+        runSeparationPass(allGroups)
+    }
 
     // Build slot table. Slot 0 = center dot (reserved); apps occupy slots 1..N.
     LaunchedEffect(group.apps.size, group.id, group.dotScale, bubbleRadius, appSpacingScale) {
@@ -660,22 +653,38 @@ private fun BubbleGroupCluster(
             .zIndex(2f)
             .clip(CircleShape)
             .background(resolvedDotColor)
-            .pointerInput(group.id + "drag") {
-                detectDragGestures(
-                    onDragStart = { group.isGroupDragging = true },
-                    onDragEnd = { group.isGroupDragging = false },
-                    onDragCancel = { group.isGroupDragging = false },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        group.center += dragAmount
-                        group.apps.forEach { app ->
-                            group.positions[app.packageName]?.let {
-                                group.positions[app.packageName] = it + dragAmount
+            .then(
+                if (group.id != "default") {
+                    Modifier.pointerInput(group.id + "drag") {
+                        detectDragGestures(
+                            onDragStart = { group.isGroupDragging = true },
+                            onDragEnd = { group.isGroupDragging = false },
+                            onDragCancel = { group.isGroupDragging = false },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                var proposed = group.center + dragAmount
+                                for (other in currentAllGroups) {
+                                    if (other.id == group.id) continue
+                                    val delta = proposed - other.center
+                                    val dist = delta.getDistance()
+                                    val minDist = group.visualGroupRadius + other.visualGroupRadius + 40f
+                                    if (dist < minDist) {
+                                        val norm = if (dist > 0.1f) delta / dist else Offset(1f, 0f)
+                                        proposed = other.center + norm * minDist
+                                    }
+                                }
+                                val actualDrag = proposed - group.center
+                                group.center = proposed
+                                group.apps.forEach { app ->
+                                    group.positions[app.packageName]?.let {
+                                        group.positions[app.packageName] = it + actualDrag
+                                    }
+                                }
                             }
-                        }
+                        )
                     }
-                )
-            }
+                } else Modifier
+            )
             .pointerInput(group.id + "longpress") {
                 detectTapGestures(onLongPress = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -950,11 +959,15 @@ private fun BubbleGroupCluster(
     val touchSizeDp = with(density) { touchDiameter.toDp() }
 
     // App bubbles
+    val isSearchActive = searchQuery.isNotEmpty()
     group.apps.forEach { app ->
         val isDragged = group.draggedPackage == app.packageName
+        val isMatch = isSearchActive && app.name.contains(searchQuery, ignoreCase = true)
         AppBubble(
             app = app,
             visualSizeDp = sizeDp,
+            highlighted = isMatch,
+            dimmed = isSearchActive && !isMatch,
             modifier = Modifier
                 .size(touchSizeDp)
                 .offset {
@@ -1056,13 +1069,25 @@ private fun ColorSwatch(color: Color, selected: Boolean, onSelect: (Color) -> Un
 }
 
 @Composable
-private fun AppBubble(app: AppSetting, visualSizeDp: Dp, modifier: Modifier = Modifier) {
+private fun AppBubble(
+    app: AppSetting,
+    visualSizeDp: Dp,
+    modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
+    dimmed: Boolean = false
+) {
     val bitmap = app.iconBitmap ?: return
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier.graphicsLayer { alpha = if (dimmed) 0.25f else 1f },
+        contentAlignment = Alignment.Center
+    ) {
         Image(
             painter = BitmapPainter(bitmap),
             contentDescription = app.name,
-            modifier = Modifier.size(visualSizeDp).clip(CircleShape)
+            modifier = Modifier
+                .size(visualSizeDp)
+                .clip(CircleShape)
+                .then(if (highlighted) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
         )
     }
 }
@@ -1081,6 +1106,39 @@ suspend fun getInstalledAppsWithUi(context: Context): List<AppSetting> = withCon
         .sortedBy { it.name }
 }
 
+
+private fun runSeparationPass(groups: List<GroupState>) {
+    repeat(10) {
+        for (i in groups.indices) {
+            for (j in i + 1 until groups.size) {
+                val gi = groups[i]; val gj = groups[j]
+                val delta = gj.center - gi.center
+                val dist = delta.getDistance()
+                val minDist = gi.visualGroupRadius + gj.visualGroupRadius + 40f
+                if (dist < minDist) {
+                    val norm = if (dist > 0.1f) delta / dist else Offset(1f, 0f)
+                    val overlap = minDist - dist
+                    val iFixed = gi.id == "default"
+                    val jFixed = gj.id == "default"
+                    if (!iFixed) {
+                        val push = norm * (if (jFixed) overlap else overlap * 0.5f)
+                        gi.center -= push
+                        gi.apps.forEach { app ->
+                            gi.positions[app.packageName]?.let { gi.positions[app.packageName] = it - push }
+                        }
+                    }
+                    if (!jFixed) {
+                        val push = norm * (if (iFixed) overlap else overlap * 0.5f)
+                        gj.center += push
+                        gj.apps.forEach { app ->
+                            gj.positions[app.packageName]?.let { gj.positions[app.packageName] = it + push }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 private fun packBubblesInCircle(
     count: Int,

@@ -12,6 +12,8 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.content.pm.PackageManager
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -39,6 +41,7 @@ class MyNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
+        if ((sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
         if (!isNotificationManagementEnabled(applicationContext)) return
 
         if (isIgnoreMediaAndOngoing(applicationContext)) {
@@ -154,10 +157,11 @@ class MyNotificationListener : NotificationListenerService() {
     private fun postSummaryNotification(group: SavedGroupData, activeKeys: Set<String>, groupKey: String) {
         val count = activeKeys.size
         val smallIcon = iconCompatFor(group.icon)
-            ?: IconCompat.createWithResource(this, R.drawable.ic_launcher_foreground)
+            ?: IconCompat.createWithResource(this, R.drawable.noti_manager_foreground)
         val emoji = iconEmoji(group.icon)
         val displayName = if (emoji.isNotEmpty()) "$emoji ${group.name}:" else group.name
-        val accentColor = AVATAR_COLORS[(group.name.firstOrNull()?.code ?: 0) % AVATAR_COLORS.size]
+        val accentColor = group.dotColor?.toArgb()
+            ?: AVATAR_COLORS[(group.name.firstOrNull()?.code ?: 0) % AVATAR_COLORS.size]
         val nm = getSystemService(NotificationManager::class.java)
 
         // Visible summary: no setGroupSummary so Samsung renders it as a normal notification.
@@ -175,7 +179,7 @@ class MyNotificationListener : NotificationListenerService() {
             .setWhen(System.currentTimeMillis())
 //            .setStyle(inboxStyle)
             .setOnlyAlertOnce(true)
-        iconLargeBitmap(group.icon, group.name)?.let { visBuilder.setLargeIcon(it) }
+        iconLargeBitmap(group.icon, group.name, group.dotColor)?.let { visBuilder.setLargeIcon(it) }
         nm.notify(summaryId(group.id), visBuilder.build())
 
         // Minimal group anchor: required for Android's group-collapsing machinery on stock
@@ -194,22 +198,39 @@ class MyNotificationListener : NotificationListenerService() {
     private fun iconEmoji(iconName: String) = when (iconName) {
         "audio" -> "🔊"
         "mail" -> "✉️"
+        "apartment" -> "🏢"
+        "android" -> "🤖"
+        "dnd" -> "🚫"
+        "heart" -> "❤️"
+        "music" -> "🎵"
+        "news" -> "📰"
+        "settings" -> "⚙️"
+        "star" -> "⭐"
         else -> ""
     }
 
 
-    private fun iconLargeBitmap(iconName: String, groupName: String): Bitmap? {
+    private fun iconLargeBitmap(iconName: String, groupName: String, dotColor: Color? = null): Bitmap? {
         val resId = when (iconName) {
             "audio" -> R.drawable.audio
             "mail" -> R.drawable.mail
-            "ic_launcher_foreground" -> R.drawable.ic_launcher_foreground
+            "apartment" -> R.drawable.apartment
+            "android" -> R.drawable.android
+            "dnd" -> R.drawable.dnd
+            "heart" -> R.drawable.heart
+            "music" -> R.drawable.music
+            "news" -> R.drawable.news
+            "settings" -> R.drawable.settings
+            "star" -> R.drawable.star
+            "ic_launcher_foreground" -> R.drawable.noti_manager_foreground
             else -> return null
         }
         val drawable = ContextCompat.getDrawable(this, resId)?.mutate() ?: return null
         val size = 256
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val bgColor = AVATAR_COLORS[(groupName.firstOrNull()?.code ?: 0) % AVATAR_COLORS.size]
+        val bgColor = dotColor?.toArgb()
+            ?: AVATAR_COLORS[(groupName.firstOrNull()?.code ?: 0) % AVATAR_COLORS.size]
         canvas.drawCircle(size / 2f, size / 2f, size / 2f,
             Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bgColor })
         drawable.setTint(android.graphics.Color.WHITE)
@@ -223,7 +244,15 @@ class MyNotificationListener : NotificationListenerService() {
         val resId = when (iconName) {
             "audio" -> R.drawable.audio
             "mail" -> R.drawable.mail
-            "ic_launcher_foreground" -> R.drawable.ic_launcher_foreground
+            "apartment" -> R.drawable.apartment
+            "android" -> R.drawable.android
+            "dnd" -> R.drawable.dnd
+            "heart" -> R.drawable.heart
+            "music" -> R.drawable.music
+            "news" -> R.drawable.news
+            "settings" -> R.drawable.settings
+            "star" -> R.drawable.star
+            "ic_launcher_foreground" -> R.drawable.noti_manager_foreground
             else -> return null
         }
         return IconCompat.createWithResource(this, resId)

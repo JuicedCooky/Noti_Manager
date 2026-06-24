@@ -67,7 +67,7 @@ A zoomable/pannable canvas (`transformable` + `graphicsLayer`) containing one `B
 - FAB (`+`) → creates a new group via name dialog.
 - Top-left `Switch` → toggles `management_enabled` in prefs and cancels all managed notifications if disabled.
 
-**Icons:** Only three drawables are supported as group icons: `"audio"`, `"mail"`, `"ic_launcher_foreground"` (see `DRAWABLE_ICONS` list and the `when` blocks in `MyNotificationListener`). Adding a new icon requires updating both lists.
+**Icons:** Supported group icons: `"audio"`, `"mail"`, `"apartment"`, `"android"`, `"dnd"`, `"heart"`, `"music"`, `"news"`, `"settings"`, `"star"`, `"ic_launcher_foreground"` (see `DRAWABLE_ICONS` in `AppBubbleScreen.kt` and the three `when` blocks in `MyNotificationListener.kt` — `iconEmoji`, `iconLargeBitmap`, `iconCompatFor`). Adding a new icon requires updating all four locations.
 
 ### Notification listener (`MyNotificationListener.kt`)
 
