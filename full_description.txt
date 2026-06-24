@@ -1,0 +1,28 @@
+Organize your Android notifications into custom groups — and keep your notification shade clean.
+
+HOW IT WORKS
+Noti Manager runs a background notification listener that intercepts incoming notifications and re-posts them under your custom-defined groups. Assign apps to a group, and whenever one of those apps sends a notification, it gets bundled under that group in your notification shade.
+
+INTERACTIVE BUBBLE CANVAS
+The main screen is a zoomable, pannable canvas where each group appears as a cluster of bubbles. The center dot is the group; surrounding bubbles are its assigned apps. Drag groups anywhere on the canvas, zoom in and out, and rearrange to your liking.
+
+- Drag an app bubble into another group to reassign it instantly
+- Long-press an app bubble to open that app's system settings
+- Long-press a group's center dot to edit it
+
+GROUP CUSTOMIZATION
+Each group can have a custom name, description, icon, dot color, and dot size. A per-group toggle lets you disable grouping for a specific group without deleting it, so its notifications pass through unchanged. A heads-up toggle controls whether grouped notifications pop up on screen.
+
+SMART NOTIFICATION HANDLING
+When a notification is grouped, the original is cancelled and re-posted as a child under a group summary with a custom header and colored avatar. Tapping a grouped notification still opens the correct app or action.
+
+A global filter option lets you exclude ongoing and media notifications from being managed — so music players and navigation apps are never interrupted.
+
+AUTOMATIC APP DISCOVERY
+On first launch, all installed apps are placed into a default group. New apps installed later are added automatically. From there, drag them into the right group at your own pace.
+
+GLOBAL ON/OFF SWITCH
+A toggle at the top of the canvas disables notification management entirely, cancelling all managed notifications so everything flows through normally.
+
+PRIVACY
+All settings and group data are stored locally on your device. Nothing is sent to any server.
