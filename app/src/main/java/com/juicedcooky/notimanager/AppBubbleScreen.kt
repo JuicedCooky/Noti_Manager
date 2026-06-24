@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
@@ -89,16 +91,74 @@ private const val DT = 0.016f
 private const val CENTER_GAP = 1.0f
 
 private val DRAWABLE_ICONS: List<Pair<String, Int>> = listOf(
-    "audio" to R.drawable.audio,
-    "mail" to R.drawable.mail,
-    "apartment" to R.drawable.apartment,
     "android" to R.drawable.android,
+    "apartment" to R.drawable.apartment,
+    "apps" to R.drawable.apps,
+    "audio" to R.drawable.audio,
+    "bluetooth" to R.drawable.bluetooth,
+    "cake" to R.drawable.cake,
+    "call" to R.drawable.call,
+    "cases" to R.drawable.cases,
+    "chat" to R.drawable.chat,
+    "cleaning_services" to R.drawable.cleaning_services,
+    "cloud" to R.drawable.cloud,
+    "cloud_upload" to R.drawable.cloud_upload,
+    "credit_card" to R.drawable.credit_card,
+    "database" to R.drawable.database,
+    "description" to R.drawable.description,
+    "desktop_windows" to R.drawable.desktop_windows,
+    "directions_bike" to R.drawable.directions_bike,
+    "directions_car" to R.drawable.directions_car,
     "dnd" to R.drawable.dnd,
+    "emoticon" to R.drawable.emoticon,
+    "explore" to R.drawable.explore,
+    "favourite" to R.drawable.favourite,
+    "flight" to R.drawable.flight,
+    "folder" to R.drawable.folder,
+    "globe" to R.drawable.globe,
+    "headphones" to R.drawable.headphones,
     "heart" to R.drawable.heart,
+    "inbox" to R.drawable.inbox,
+    "key" to R.drawable.key,
+    "list" to R.drawable.list,
+    "location_home" to R.drawable.location_home,
+    "mail" to R.drawable.mail,
+    "man" to R.drawable.man,
+    "map" to R.drawable.map,
+    "memory" to R.drawable.memory,
+    "menu" to R.drawable.menu,
+    "mic" to R.drawable.mic,
+    "mobile" to R.drawable.mobile,
+    "mood" to R.drawable.mood,
+    "movie" to R.drawable.movie,
     "music" to R.drawable.music,
+    "navigation" to R.drawable.navigation,
     "news" to R.drawable.news,
+    "notifications" to R.drawable.notifications,
+    "package_2" to R.drawable.package_2,
+    "pet_supplies" to R.drawable.pet_supplies,
+    "photo" to R.drawable.photo,
+    "receipt" to R.drawable.receipt,
+    "restaurant" to R.drawable.restaurant,
+    "school" to R.drawable.school,
+    "sentiment_dissatisfied" to R.drawable.sentiment_dissatisfied,
+    "sentiment_satisfied" to R.drawable.sentiment_satisfied,
     "settings" to R.drawable.settings,
+    "shopping_bag" to R.drawable.shopping_bag,
+    "shopping_basket" to R.drawable.shopping_basket,
+    "shopping_cart" to R.drawable.shopping_cart,
+    "sports_basketball" to R.drawable.sports_basketball,
+    "sports_esports" to R.drawable.sports_esports,
     "star" to R.drawable.star,
+    "store" to R.drawable.store,
+    "storefront" to R.drawable.storefront,
+    "thumb_up" to R.drawable.thumb_up,
+    "trophy" to R.drawable.trophy,
+    "videocam" to R.drawable.videocam,
+    "wallet" to R.drawable.wallet,
+    "watch" to R.drawable.watch,
+    "wifi" to R.drawable.wifi,
+    "woman" to R.drawable.woman,
     "ic_launcher_foreground" to R.drawable.noti_manager_foreground,
 )
 
@@ -755,29 +815,31 @@ private fun BubbleGroupCluster(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        filteredIcons.forEach { (name, resId) ->
-                            val selected = editIcon == name
-                            val accent = editDotColor ?: resolvedDotColor
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(if (selected) accent.copy(alpha = 0.15f) else Color.Transparent)
-                                    .clickable { editIcon = name; showIconPicker = false }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = resId),
-                                    contentDescription = name,
-                                    modifier = Modifier.size(28.dp),
-                                    tint = if (selected) accent else MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    name.split("_").joinToString(" ") { it.replaceFirstChar { c -> c.uppercaseChar() } },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (selected) accent else MaterialTheme.colorScheme.onSurface
-                                )
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(filteredIcons) { (name, resId) ->
+                                val selected = editIcon == name
+                                val accent = editDotColor ?: resolvedDotColor
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(if (selected) accent.copy(alpha = 0.15f) else Color.Transparent)
+                                        .clickable { editIcon = name; showIconPicker = false }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = resId),
+                                        contentDescription = name,
+                                        modifier = Modifier.size(28.dp),
+                                        tint = if (selected) accent else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        name.split("_").joinToString(" ") { it.replaceFirstChar { c -> c.uppercaseChar() } },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (selected) accent else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     }

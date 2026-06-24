@@ -196,32 +196,148 @@ class MyNotificationListener : NotificationListenerService() {
     }
 
     private fun iconEmoji(iconName: String) = when (iconName) {
-        "audio" -> "🔊"
-        "mail" -> "✉️"
-        "apartment" -> "🏢"
         "android" -> "🤖"
+        "apartment" -> "🏢"
+        "apps" -> "📱"
+        "audio" -> "🔊"
+        "bluetooth" -> "🔵"
+        "cake" -> "🎂"
+        "call" -> "📞"
+        "cases" -> "💼"
+        "chat" -> "💬"
+        "cleaning_services" -> "🧹"
+        "cloud" -> "☁️"
+        "cloud_upload" -> "📤"
+        "credit_card" -> "💳"
+        "database" -> "🗄️"
+        "description" -> "📄"
+        "desktop_windows" -> "🖥️"
+        "directions_bike" -> "🚲"
+        "directions_car" -> "🚗"
         "dnd" -> "🚫"
+        "emoticon" -> "😊"
+        "explore" -> "🧭"
+        "favourite" -> "💝"
+        "flight" -> "✈️"
+        "folder" -> "📁"
+        "globe" -> "🌐"
+        "headphones" -> "🎧"
         "heart" -> "❤️"
+        "inbox" -> "📥"
+        "key" -> "🔑"
+        "list" -> "📋"
+        "location_home" -> "🏠"
+        "mail" -> "✉️"
+        "man" -> "👨"
+        "map" -> "🗺️"
+        "memory" -> "💾"
+        "menu" -> "📖"
+        "mic" -> "🎤"
+        "mobile" -> "📱"
+        "mood" -> "😄"
+        "movie" -> "🎬"
         "music" -> "🎵"
+        "navigation" -> "➡️"
         "news" -> "📰"
+        "notifications" -> "🔔"
+        "package_2" -> "📦"
+        "pet_supplies" -> "🐾"
+        "photo" -> "🖼️"
+        "receipt" -> "🧾"
+        "restaurant" -> "🍽️"
+        "school" -> "🏫"
+        "sentiment_dissatisfied" -> "😞"
+        "sentiment_satisfied" -> "😊"
         "settings" -> "⚙️"
+        "shopping_bag" -> "🛍️"
+        "shopping_basket" -> "🧺"
+        "shopping_cart" -> "🛒"
+        "sports_basketball" -> "🏀"
+        "sports_esports" -> "🎮"
         "star" -> "⭐"
+        "store" -> "🏪"
+        "storefront" -> "🏬"
+        "thumb_up" -> "👍"
+        "trophy" -> "🏆"
+        "videocam" -> "📹"
+        "wallet" -> "👜"
+        "watch" -> "⌚"
+        "wifi" -> "📶"
+        "woman" -> "👩"
         else -> ""
     }
 
 
     private fun iconLargeBitmap(iconName: String, groupName: String, dotColor: Color? = null): Bitmap? {
         val resId = when (iconName) {
-            "audio" -> R.drawable.audio
-            "mail" -> R.drawable.mail
-            "apartment" -> R.drawable.apartment
             "android" -> R.drawable.android
+            "apartment" -> R.drawable.apartment
+            "apps" -> R.drawable.apps
+            "audio" -> R.drawable.audio
+            "bluetooth" -> R.drawable.bluetooth
+            "cake" -> R.drawable.cake
+            "call" -> R.drawable.call
+            "cases" -> R.drawable.cases
+            "chat" -> R.drawable.chat
+            "cleaning_services" -> R.drawable.cleaning_services
+            "cloud" -> R.drawable.cloud
+            "cloud_upload" -> R.drawable.cloud_upload
+            "credit_card" -> R.drawable.credit_card
+            "database" -> R.drawable.database
+            "description" -> R.drawable.description
+            "desktop_windows" -> R.drawable.desktop_windows
+            "directions_bike" -> R.drawable.directions_bike
+            "directions_car" -> R.drawable.directions_car
             "dnd" -> R.drawable.dnd
+            "emoticon" -> R.drawable.emoticon
+            "explore" -> R.drawable.explore
+            "favourite" -> R.drawable.favourite
+            "flight" -> R.drawable.flight
+            "folder" -> R.drawable.folder
+            "globe" -> R.drawable.globe
+            "headphones" -> R.drawable.headphones
             "heart" -> R.drawable.heart
+            "inbox" -> R.drawable.inbox
+            "key" -> R.drawable.key
+            "list" -> R.drawable.list
+            "location_home" -> R.drawable.location_home
+            "mail" -> R.drawable.mail
+            "man" -> R.drawable.man
+            "map" -> R.drawable.map
+            "memory" -> R.drawable.memory
+            "menu" -> R.drawable.menu
+            "mic" -> R.drawable.mic
+            "mobile" -> R.drawable.mobile
+            "mood" -> R.drawable.mood
+            "movie" -> R.drawable.movie
             "music" -> R.drawable.music
+            "navigation" -> R.drawable.navigation
             "news" -> R.drawable.news
+            "notifications" -> R.drawable.notifications
+            "package_2" -> R.drawable.package_2
+            "pet_supplies" -> R.drawable.pet_supplies
+            "photo" -> R.drawable.photo
+            "receipt" -> R.drawable.receipt
+            "restaurant" -> R.drawable.restaurant
+            "school" -> R.drawable.school
+            "sentiment_dissatisfied" -> R.drawable.sentiment_dissatisfied
+            "sentiment_satisfied" -> R.drawable.sentiment_satisfied
             "settings" -> R.drawable.settings
+            "shopping_bag" -> R.drawable.shopping_bag
+            "shopping_basket" -> R.drawable.shopping_basket
+            "shopping_cart" -> R.drawable.shopping_cart
+            "sports_basketball" -> R.drawable.sports_basketball
+            "sports_esports" -> R.drawable.sports_esports
             "star" -> R.drawable.star
+            "store" -> R.drawable.store
+            "storefront" -> R.drawable.storefront
+            "thumb_up" -> R.drawable.thumb_up
+            "trophy" -> R.drawable.trophy
+            "videocam" -> R.drawable.videocam
+            "wallet" -> R.drawable.wallet
+            "watch" -> R.drawable.watch
+            "wifi" -> R.drawable.wifi
+            "woman" -> R.drawable.woman
             "ic_launcher_foreground" -> R.drawable.noti_manager_foreground
             else -> return null
         }
@@ -242,16 +358,74 @@ class MyNotificationListener : NotificationListenerService() {
 
     private fun iconCompatFor(iconName: String): IconCompat? {
         val resId = when (iconName) {
-            "audio" -> R.drawable.audio
-            "mail" -> R.drawable.mail
-            "apartment" -> R.drawable.apartment
             "android" -> R.drawable.android
+            "apartment" -> R.drawable.apartment
+            "apps" -> R.drawable.apps
+            "audio" -> R.drawable.audio
+            "bluetooth" -> R.drawable.bluetooth
+            "cake" -> R.drawable.cake
+            "call" -> R.drawable.call
+            "cases" -> R.drawable.cases
+            "chat" -> R.drawable.chat
+            "cleaning_services" -> R.drawable.cleaning_services
+            "cloud" -> R.drawable.cloud
+            "cloud_upload" -> R.drawable.cloud_upload
+            "credit_card" -> R.drawable.credit_card
+            "database" -> R.drawable.database
+            "description" -> R.drawable.description
+            "desktop_windows" -> R.drawable.desktop_windows
+            "directions_bike" -> R.drawable.directions_bike
+            "directions_car" -> R.drawable.directions_car
             "dnd" -> R.drawable.dnd
+            "emoticon" -> R.drawable.emoticon
+            "explore" -> R.drawable.explore
+            "favourite" -> R.drawable.favourite
+            "flight" -> R.drawable.flight
+            "folder" -> R.drawable.folder
+            "globe" -> R.drawable.globe
+            "headphones" -> R.drawable.headphones
             "heart" -> R.drawable.heart
+            "inbox" -> R.drawable.inbox
+            "key" -> R.drawable.key
+            "list" -> R.drawable.list
+            "location_home" -> R.drawable.location_home
+            "mail" -> R.drawable.mail
+            "man" -> R.drawable.man
+            "map" -> R.drawable.map
+            "memory" -> R.drawable.memory
+            "menu" -> R.drawable.menu
+            "mic" -> R.drawable.mic
+            "mobile" -> R.drawable.mobile
+            "mood" -> R.drawable.mood
+            "movie" -> R.drawable.movie
             "music" -> R.drawable.music
+            "navigation" -> R.drawable.navigation
             "news" -> R.drawable.news
+            "notifications" -> R.drawable.notifications
+            "package_2" -> R.drawable.package_2
+            "pet_supplies" -> R.drawable.pet_supplies
+            "photo" -> R.drawable.photo
+            "receipt" -> R.drawable.receipt
+            "restaurant" -> R.drawable.restaurant
+            "school" -> R.drawable.school
+            "sentiment_dissatisfied" -> R.drawable.sentiment_dissatisfied
+            "sentiment_satisfied" -> R.drawable.sentiment_satisfied
             "settings" -> R.drawable.settings
+            "shopping_bag" -> R.drawable.shopping_bag
+            "shopping_basket" -> R.drawable.shopping_basket
+            "shopping_cart" -> R.drawable.shopping_cart
+            "sports_basketball" -> R.drawable.sports_basketball
+            "sports_esports" -> R.drawable.sports_esports
             "star" -> R.drawable.star
+            "store" -> R.drawable.store
+            "storefront" -> R.drawable.storefront
+            "thumb_up" -> R.drawable.thumb_up
+            "trophy" -> R.drawable.trophy
+            "videocam" -> R.drawable.videocam
+            "wallet" -> R.drawable.wallet
+            "watch" -> R.drawable.watch
+            "wifi" -> R.drawable.wifi
+            "woman" -> R.drawable.woman
             "ic_launcher_foreground" -> R.drawable.noti_manager_foreground
             else -> return null
         }
