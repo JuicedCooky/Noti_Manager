@@ -20,7 +20,8 @@ data class SavedGroupData(
     val center: Offset,
     val packageNames: List<String>,
     val groupingEnabled: Boolean = true,
-    val headsUpEnabled: Boolean = false
+    val headsUpEnabled: Boolean = false,
+    val notificationsEnabled: Boolean = true
 )
 
 fun saveGroups(context: Context, groups: List<GroupState>) {
@@ -36,6 +37,7 @@ fun saveGroups(context: Context, groups: List<GroupState>) {
         if (g.dotColor != null) obj.put("dotColor", g.dotColor!!.value.toLong())
         obj.put("groupingEnabled", g.groupingEnabled)
         obj.put("headsUpEnabled", g.headsUpEnabled)
+        obj.put("notificationsEnabled", g.notificationsEnabled)
         obj.put("centerX", g.center.x.toDouble())
         obj.put("centerY", g.center.y.toDouble())
         val pkgs = JSONArray()
@@ -63,6 +65,7 @@ fun loadSavedGroups(context: Context): List<SavedGroupData>? {
                 dotScale = obj.optDouble("dotScale", 1.0).toFloat(),
                 groupingEnabled = obj.optBoolean("groupingEnabled", true),
                 headsUpEnabled = obj.optBoolean("headsUpEnabled", false),
+                notificationsEnabled = obj.optBoolean("notificationsEnabled", true),
                 center = Offset(
                     obj.getDouble("centerX").toFloat(),
                     obj.getDouble("centerY").toFloat()

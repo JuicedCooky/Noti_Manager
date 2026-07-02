@@ -82,6 +82,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
 import kotlin.math.*
 
 private const val SPRING = 40f
@@ -162,16 +165,6 @@ private val DRAWABLE_ICONS: List<Pair<String, Int>> = listOf(
     "ic_launcher_foreground" to R.drawable.noti_manager_foreground,
 )
 
-private val DOT_COLORS = listOf(
-    Color(0xFF1976D2), // Blue
-    Color(0xFF388E3C), // Green
-    Color(0xFFF57C00), // Orange
-    Color(0xFFE91E63), // Pink
-    Color(0xFF7B1FA2), // Purple
-    Color(0xFFD32F2F), // Red
-    Color(0xFFFBC02D), // Yellow
-    Color(0xFF455A64), // Blue Grey
-)
 
 class GroupState(val id: String, name: String) {
     var name by mutableStateOf(name)
@@ -193,6 +186,7 @@ class GroupState(val id: String, name: String) {
     var icon by mutableStateOf("")
     var groupingEnabled by mutableStateOf(true)
     var headsUpEnabled by mutableStateOf(false)
+    var notificationsEnabled by mutableStateOf(true)
     var showEditDialog by mutableStateOf(false)
 }
 
@@ -238,6 +232,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                     g.description = s.description
                     g.groupingEnabled = s.groupingEnabled
                     g.headsUpEnabled = s.headsUpEnabled
+                    g.notificationsEnabled = s.notificationsEnabled
                     if (s.center != Offset.Zero) g.center = s.center
                     for (pkg in s.packageNames) {
                         byPackage[pkg]?.let { g.apps.add(it); assigned.add(pkg) }
@@ -277,7 +272,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
         }
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            zoom = (zoom * zoomChange).coerceIn(0.3f, 3f)
+            zoom = (zoom * zoomChange).coerceIn(0.01f, 3f)
             panOffset += panChange
         }
 
@@ -343,7 +338,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                     }
                     val bw = (maxX - minX).coerceAtLeast(1f)
                     val bh = (maxY - minY).coerceAtLeast(1f)
-                    val newZoom = (min(widthPx * 0.85f / bw, heightPx * 0.85f / bh)).coerceIn(0.3f, 3f)
+                    val newZoom = (min(widthPx * 0.85f / bw, heightPx * 0.85f / bh)).coerceIn(0.01f, 3f)
                     zoom = newZoom
                     panOffset = Offset(
                         (widthPx / 2f - (minX + maxX) / 2f) * newZoom,
@@ -353,7 +348,10 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
             },
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
         ) {
-            Text("⊡", style = MaterialTheme.typography.titleMedium)
+            Icon(
+                painter = painterResource(id = R.drawable.outline_arrows_output_24),
+                contentDescription = "Fit all groups on screen"
+            )
         }
 
         Row(
@@ -481,9 +479,11 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                                 val nonDefault = groups.filter { it.id != "default" }
                                 if (default != null && nonDefault.isNotEmpty()) {
                                     val n = nonDefault.size
-                                    val spread = widthPx.coerceAtMost(heightPx) * 0.3f
                                     nonDefault.forEachIndexed { i, g ->
                                         val angle = 2.0 * PI * i / n
+                                        // Place just outside default's radius; runSeparationPass
+                                        // below resolves any remaining overlap between groups.
+                                        val spread = default.visualGroupRadius + g.visualGroupRadius + 40f
                                         val newCenter = Offset(
                                             default.center.x + (spread * cos(angle)).toFloat(),
                                             default.center.y + (spread * sin(angle)).toFloat()
@@ -494,6 +494,7 @@ fun AppBubbleScreen(modifier: Modifier = Modifier) {
                                             g.velocities[app.packageName] = Offset.Zero
                                         }
                                     }
+                                    runSeparationPass(groups)
                                 }
                                 showSettingsDialog = false
                             },
@@ -766,6 +767,7 @@ private fun BubbleGroupCluster(
     if (group.showEditDialog) {
         var editName by remember { mutableStateOf(group.name) }
         var editDesc by remember { mutableStateOf(group.description) }
+        var editNotificationsEnabled by remember { mutableStateOf(group.notificationsEnabled) }
         var editGroupingEnabled by remember { mutableStateOf(group.groupingEnabled) }
         var editHeadsUpEnabled by remember { mutableStateOf(group.headsUpEnabled) }
         var editIcon by remember { mutableStateOf(group.icon) }
@@ -780,19 +782,10 @@ private fun BubbleGroupCluster(
                 onDismissRequest = { showColorDialog = false },
                 title = { Text("Choose Color") },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DOT_COLORS.chunked(4).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                row.forEach { c ->
-                                    ColorSwatch(
-                                        color = c,
-                                        selected = c == editDotColor,
-                                        onSelect = { editDotColor = it }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    HsvColorPicker(
+                        initialColor = editDotColor ?: resolvedDotColor,
+                        onColorChanged = { editDotColor = it }
+                    )
                 },
                 confirmButton = {
                     TextButton(onClick = { showColorDialog = false }) { Text("Done") }
@@ -891,6 +884,25 @@ private fun BubbleGroupCluster(
                             label = { Text("Description") },
                             minLines = 2
                         )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text("Notifications", style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    if (editNotificationsEnabled) "Notifications from this group are shown"
+                                    else "All notifications from this group are blocked",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = editNotificationsEnabled,
+                                onCheckedChange = { editNotificationsEnabled = it }
+                            )
+                        }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -996,6 +1008,7 @@ private fun BubbleGroupCluster(
                         group.icon = editIcon.trim()
                         group.dotScale = editDotScale
                         group.dotColor = editDotColor
+                        group.notificationsEnabled = editNotificationsEnabled
                         group.groupingEnabled = editGroupingEnabled
                         group.headsUpEnabled = editHeadsUpEnabled
                         group.showEditDialog = false
@@ -1117,17 +1130,130 @@ private fun BubbleGroupCluster(
 }
 
 @Composable
-private fun ColorSwatch(color: Color, selected: Boolean, onSelect: (Color) -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(color)
-            .then(
-                if (selected) Modifier.border(3.dp, Color.White, CircleShape) else Modifier
+private fun HsvColorPicker(
+    initialColor: Color,
+    onColorChanged: (Color) -> Unit
+) {
+    val initHsv = remember(initialColor) {
+        val arr = FloatArray(3)
+        android.graphics.Color.colorToHSV(
+            android.graphics.Color.argb(
+                255,
+                (initialColor.red * 255).toInt(),
+                (initialColor.green * 255).toInt(),
+                (initialColor.blue * 255).toInt()
+            ),
+            arr
+        )
+        arr
+    }
+    var hue by remember { mutableStateOf(initHsv[0]) }
+    var sat by remember { mutableStateOf(initHsv[1]) }
+    var brightness by remember { mutableStateOf(initHsv[2]) }
+
+    val currentColor = remember(hue, sat, brightness) {
+        Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, brightness)))
+    }
+
+    LaunchedEffect(currentColor) {
+        onColorChanged(currentColor)
+    }
+
+    val hueColor = remember(hue) {
+        Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, 1f, 1f)))
+    }
+
+    val hueBarColors = remember {
+        listOf(
+            Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
+            Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF), Color(0xFFFF0000)
+        )
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Saturation / brightness panel
+        ComposeCanvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: continue
+                            change.consume()
+                            sat = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            brightness = 1f - (change.position.y / size.height.toFloat()).coerceIn(0f, 1f)
+                        }
+                    }
+                }
+        ) {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(Color.White, hueColor), startX = 0f, endX = size.width),
+                size = size
             )
-            .clickable { onSelect(color) }
-    )
+            drawRect(
+                brush = Brush.verticalGradient(listOf(Color.Transparent, Color.Black), startY = 0f, endY = size.height),
+                size = size
+            )
+            val thumbX = sat * size.width
+            val thumbY = (1f - brightness) * size.height
+            drawCircle(Color.White, radius = 14f, center = Offset(thumbX, thumbY))
+            drawCircle(currentColor, radius = 11f, center = Offset(thumbX, thumbY))
+        }
+
+        // Hue bar
+        ComposeCanvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp)
+                .clip(RoundedCornerShape(50))
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: continue
+                            change.consume()
+                            hue = (change.position.x / size.width.toFloat() * 360f).coerceIn(0f, 360f)
+                        }
+                    }
+                }
+        ) {
+            drawRect(
+                brush = Brush.horizontalGradient(hueBarColors, startX = 0f, endX = size.width),
+                size = size
+            )
+            val thumbX = hue / 360f * size.width
+            val thumbR = size.height / 2f
+            drawCircle(Color.White, radius = thumbR, center = Offset(thumbX, thumbR))
+            drawCircle(hueColor, radius = thumbR - 2f, center = Offset(thumbX, thumbR))
+        }
+
+        // Color preview + hex code
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(currentColor)
+            )
+            Text(
+                text = "#%02X%02X%02X".format(
+                    (currentColor.red * 255).toInt(),
+                    (currentColor.green * 255).toInt(),
+                    (currentColor.blue * 255).toInt()
+                ),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
 }
 
 @Composable

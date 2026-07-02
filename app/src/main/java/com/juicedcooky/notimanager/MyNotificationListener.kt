@@ -52,6 +52,11 @@ class MyNotificationListener : NotificationListenerService() {
 
         val groups = loadSavedGroups(applicationContext) ?: return
         val group = groups.firstOrNull { sbn.packageName in it.packageNames } ?: return
+        if (!group.notificationsEnabled) {
+            selfCancelledKeys.add(sbn.key)
+            cancelNotification(sbn.key)
+            return
+        }
         if (!group.groupingEnabled) return
 
         val extras = sbn.notification.extras
