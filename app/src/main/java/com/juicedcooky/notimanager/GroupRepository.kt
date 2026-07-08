@@ -3,6 +3,7 @@ package com.juicedcooky.notimanager
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import com.juicedcooky.notimanager.group.GroupState
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -142,4 +143,15 @@ fun getTouchAreaFraction(context: Context): Float =
 fun setTouchAreaFraction(context: Context, value: Float) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .edit().putFloat(KEY_TOUCH_AREA_FRACTION, value).apply()
+}
+
+private const val KEY_HAS_SEEN_WALKTHROUGH = "has_seen_walkthrough"
+
+fun hasSeenWalkthrough(context: Context): Boolean =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getBoolean(KEY_HAS_SEEN_WALKTHROUGH, false)
+
+fun setHasSeenWalkthrough(context: Context, seen: Boolean) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putBoolean(KEY_HAS_SEEN_WALKTHROUGH, seen).apply()
 }
